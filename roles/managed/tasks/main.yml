@@ -1,0 +1,251 @@
+---
+# tasks file for managed
+
+- name: Fail if variables not defined
+  ansible.builtin.assert:
+    that:
+      - satellite_private_dns_name is defined
+      - foreman_admin_username is defined
+      - foreman_admin_passwd is defined
+      - foreman_organization is defined
+      - foreman_location is defined
+      - foreman_lifecycle is defined
+      - foreman_content_view is defined
+      - mysql_root_passwd is defined
+      - mysql_wp_user is defined
+      - mysql_wp_passwd is defined
+      - wp_archive_url is defined
+      - wp_weblog_title is defined
+      - wp_user_name is defined
+      - wp_admin_password is defined
+      - wp_allow_weak_pass is defined
+      - wp_admin_email is defined
+      - wp_blog_public is defined
+    fail_msg: "Required variables not set"
+
+- name: Remove the RHUI client
+  ansible.builtin.dnf:
+    name: 'rh-amazon-rhui-client*'
+    state: absent
+  notify: Dnf clean
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Install katello-ca-consumer-latest.noarch.rpm
+  ansible.builtin.dnf:
+    name: "http://{{ satellite_private_dns_name }}/pub/katello-ca-consumer-latest.noarch.rpm"
+    disable_gpg_check: true
+    state: present
+
+- name: Register to Satellite
+  redhat.rhel_system_roles.redhat_subscription:
+    state: present
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    org_id: "{{ foreman_organization }}"
+    environment: "{{ foreman_lifecycle }}/{{ foreman_content_view }}"
+
+- name: Patch rhsm config
+  ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+
+- name: Refresh rhsm config
+  ansible.builtin.command: subscription-manager refresh
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+  notify: Dnf clean
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Install mysql and other related packages
+  ansible.builtin.dnf:
+    name:
+      - mysql
+      - mysql-server
+      - pip
+    state: present
+
+- name: Install PyMySQL python package
+  ansible.builtin.pip:
+    name: PyMySQL
+    state: present
+
+- name: Install httpd package
+  ansible.builtin.dnf:
+    name:
+      - httpd
+      - mod_ssl
+    state: present
+
+- name: Install php packages
+  ansible.builtin.dnf:
+    name:
+      - php
+      - php-common
+      - php-cli
+      - php-pear
+      - php-pdo
+      - php-mysqlnd
+      - php-gd
+      - php-mbstring
+      - php-xml
+      - php-intl
+      - php-zip
+      - php-devel
+    state: present
+
+- name: Update all packages
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_only: true
+
+- name: Install cryptography python package
+  ansible.builtin.pip:
+    name: cryptography
+    state: present
+
+- name: Enable service mysql, and start
+  ansible.builtin.service:
+    name: mysqld
+    enabled: true
+    state: started
+
+- name: Set mysql root password
+  community.mysql.mysql_user:
+    check_implicit_admin: true
+    name: root
+    password: "{{ mysql_root_passwd }}"
+    state: present
+
+- name: Create Wordpress database
+  community.mysql.mysql_db:
+    login_user: root
+    login_password: "{{ mysql_root_passwd }}"
+    name: "{{ mysql_wp_database }}"
+    state: present
+
+- name: Create Wordpress user
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ mysql_root_passwd }}"
+    name: "{{ mysql_wp_user }}"
+    password: "{{ mysql_wp_passwd }}"
+    state: present
+    priv:
+      'wordpress.*': 'ALL'
+
+- name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
+  community.crypto.openssl_privatekey:
+    path: /etc/pki/tls/private/server.key
+
+- name: Generate an OpenSSL Certificate Signing Request
+  community.crypto.openssl_csr:
+    path: /etc/pki/tls/server.csr
+    privatekey_path: /etc/pki/tls/private/server.key
+    common_name: www.demo.com
+
+- name: Generate a Self Signed OpenSSL certificate
+  community.crypto.x509_certificate:
+    path: /etc/pki/tls/certs/server.crt
+    privatekey_path: /etc/pki/tls/private/server.key
+    csr_path: /etc/pki/tls/server.csr
+    provider: selfsigned
+
+- name: Modify SSLCertificateFile of /etc/httpd/conf.d/ssl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf.d/ssl.conf
+    regexp: '^SSLCertificateFile'
+    line: SSLCertificateFile /etc/pki/tls/certs/server.crt
+
+- name: Modify SSLCertificateKeyFile of /etc/httpd/conf.d/ssl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf.d/ssl.conf
+    regexp: '^SSLCertificateKeyFile'
+    line: SSLCertificateKeyFile /etc/pki/tls/private/server.key
+
+- name: Extract Wordpress archive
+  ansible.builtin.unarchive:
+    src: "{{ wp_archive_url }}"
+    dest: /var/www/html
+    remote_src: true
+    owner: apache
+    group: apache
+
+- name: Copy wp-config.php file
+  ansible.builtin.copy:
+    src: /var/www/html/wordpress/wp-config-sample.php
+    dest: /var/www/html/wordpress/wp-config.php
+    remote_src: true
+    owner: apache
+    group: apache
+    mode: '0644'
+
+- name: Modify DB_NAME of /var/www/html/wordpress/wp-config.php
+  ansible.builtin.replace:
+    path: /var/www/html/wordpress/wp-config.php
+    regexp: 'database_name_here'
+    replace: "{{ mysql_wp_database }}"
+
+- name: Modify DB_USER of /var/www/html/wordpress/wp-config.php
+  ansible.builtin.replace:
+    path: /var/www/html/wordpress/wp-config.php
+    regexp: 'username_here'
+    replace: "{{ mysql_wp_user }}"
+
+- name: Modify DB_PASSWORD of /var/www/html/wordpress/wp-config.php
+  ansible.builtin.replace:
+    path: /var/www/html/wordpress/wp-config.php
+    regexp: 'password_here'
+    replace: "{{ mysql_wp_passwd }}"
+
+- name: Enable service httpd, and start
+  ansible.builtin.service:
+    name: httpd
+    enabled: true
+    state: started
+
+- name: Supply a configuration to the default site
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/wordpress/wp-admin/install.php?step=2"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      weblog_title: "{{ wp_weblog_title }}"
+      user_name: "{{ wp_user_name }}"
+      admin_password: "{{ wp_admin_password }}"
+      admin_password2: "{{ wp_admin_password }}"
+      pw_weak: "{{ wp_allow_weak_pass }}"
+      admin_email: "{{ wp_admin_email }}"
+      blog_public: "{{ wp_blog_public }}"
+      Submit: "Install WordPress"
+      language: ""
+    status_code: 200
+    return_content: true
+    validate_certs: false
+  register: config_result
+
+- name: Display WP configuration
+  ansible.builtin.debug:
+    var: config_result
+
+- name: GET the default weblog
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/wordpress/"
+    method: GET
+    status_code: 200
+    return_content: true
+    validate_certs: false
+  register: default_weblog_page
+
+- name: Check for Site Name supplied in config
+  ansible.builtin.fail:
+    msg: "Site Check Failed - could not access default weblog {{ wp_weblog_title }}"
+  when: default_weblog_page.content is not search(wp_weblog_title)
+
+- name: Test Results
+  ansible.builtin.debug:
+    msg: "All tests succeeded."

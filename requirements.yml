@@ -1,0 +1,9 @@
+---
+collections:
+  - amazon.aws
+  - awx.awx
+  - community.crypto
+  - community.mysql
+  - redhat.rhel_system_roles
+  - redhat.satellite_operations
+  - redhat.satellite

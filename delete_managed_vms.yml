@@ -1,0 +1,37 @@
+---
+- name: Delete managed VMs
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+
+  tasks:
+    - name: Fail if variables not defined
+      ansible.builtin.assert:
+        that:
+          - aws_region is defined
+          - managed_vms_name_prefix
+          - managed_vms_type is defined
+        fail_msg: "Required variables not set"
+
+    - name: Check if the demo VMs is already provisioned
+      amazon.aws.ec2_instance_info:
+        filters:
+          "tag:Name": "{{ managed_vms_name_prefix }}-*"
+          instance-state-name:
+            - pending
+            - running
+            - shutting-down
+            - stopping
+            - stopped
+        region: "{{ aws_region }}"
+      register: existing_vms
+
+    - name: Delete the VMs
+      amazon.aws.ec2_instance:
+        instance_ids:
+          - "{{ item.instance_id }}"
+        region: "{{ aws_region }}"
+        state: absent
+      loop: "{{ existing_vms.instances }}"
+      when: existing_vms.instances is defined and existing_vms.instances | length > 0

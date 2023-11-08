@@ -1,0 +1,244 @@
+---
+# tasks file for satellite
+
+- name: Fail if variables not defined
+  ansible.builtin.assert:
+    that:
+      - rhsm_username is defined
+      - rhsm_passwd is defined
+      - local_manifest_path is defined
+      - foreman_manifest_path is defined
+      - foreman_admin_username is defined
+      - foreman_admin_passwd is defined
+      - foreman_organization is defined
+      - foreman_location is defined
+      - foreman_cv_initial_end_date is defined
+      - satellite_public_dns_name is defined
+    fail_msg: "Required variables not set"
+
+- name: Remove the RHUI client
+  ansible.builtin.dnf:
+    name: 'rh-amazon-rhui-client*'
+    state: absent
+  notify: Dnf clean
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Register to Red Hat Subscription Management
+  redhat.rhel_system_roles.redhat_subscription:
+    state: present
+    username: "{{ rhsm_username }}"
+    password: "{{ rhsm_passwd }}"
+
+- name: Patch rhsm config
+  ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+
+- name: Refresh rhsm config
+  ansible.builtin.command: subscription-manager refresh
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+  notify: Dnf clean
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Configure repositories
+  redhat.rhel_system_roles.rhsm_repository:
+    name:
+      - rhel-8-for-x86_64-baseos-rpms
+      - rhel-8-for-x86_64-appstream-rpms
+      - satellite-6.13-for-rhel-8-x86_64-rpms
+      - satellite-maintenance-6.13-for-rhel-8-x86_64-rpms
+
+- name: Enable module
+  ansible.builtin.command: dnf module enable -y satellite:el8
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+
+- name: Update all packages
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_only: true
+
+- name: Install Satellite and Sos packages
+  ansible.builtin.dnf:
+    name:
+      - satellite
+      - sos
+    state: present
+
+- name: Install Satellite server (it will take 20+ mins)
+  ansible.builtin.include_role:
+    name: redhat.satellite_operations.installer
+  vars:
+    satellite_installer_scenario: satellite  # noqa: var-naming[no-role-prefix]
+    satellite_installer_package: satellite-installer
+    satellite_installer_options:
+      - "--foreman-initial-organization {{ foreman_organization }}"
+      - "--foreman-initial-location {{ foreman_location }}"
+      - "--foreman-initial-admin-username {{ foreman_admin_username }}"
+      - "--foreman-initial-admin-password {{ foreman_admin_passwd }}"
+    satellite_installer_timeout: 3600
+
+- name: Copy a manifest file
+  ansible.builtin.copy:
+    src: "{{ local_manifest_path }}"
+    dest: "{{ foreman_manifest_path }}"
+    mode: '0644'
+
+- name: Upload the manifest
+  redhat.satellite.subscription_manifest:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    state: present
+    manifest_path: "{{ foreman_manifest_path }}"
+    validate_certs: false
+
+- name: "Enable the Satellite 6 Client for RHEL 9 repository"
+  redhat.satellite.repository_set:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    name: "Red Hat Satellite Client 6 for RHEL 9 x86_64 (RPMs)"
+    organization: "{{ foreman_organization }}"
+    product: "Red Hat Enterprise Linux for x86_64"
+    all_repositories: true
+    state: enabled
+    validate_certs: false
+
+- name: "Enable the RHEL 9 BaseOS repository"
+  redhat.satellite.repository_set:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    name: "Red Hat Enterprise Linux 9 for x86_64 - BaseOS (RPMs)"
+    organization: "{{ foreman_organization }}"
+    product: "Red Hat Enterprise Linux for x86_64"
+    repositories:
+      - releasever: "9"
+    state: enabled
+    validate_certs: false
+
+- name: "Enable the RHEL 9 AppStream repository"
+  redhat.satellite.repository_set:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    name: "Red Hat Enterprise Linux 9 for x86_64 - AppStream (RPMs)"
+    organization: "{{ foreman_organization }}"
+    product: "Red Hat Enterprise Linux for x86_64"
+    repositories:
+      - releasever: "9"
+    state: enabled
+    validate_certs: false
+
+- name: "Sync the repositories"
+  redhat.satellite.repository_sync:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    product: "Red Hat Enterprise Linux for x86_64"
+    validate_certs: false
+
+- name: "Add Development lifecycle environment"
+  redhat.satellite.lifecycle_environment:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    name: "Development"
+    prior: "Library"
+    description: "Development Environment"
+    validate_certs: false
+
+- name: "Add Production lifecycle environment"
+  redhat.satellite.lifecycle_environment:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    name: "Production"
+    prior: "Development"
+    description: "Production Environment"
+    validate_certs: false
+
+- name: "Create a Content View"
+  redhat.satellite.content_view:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    name: "{{ foreman_content_view }}"
+    description: "RHEL9 Standard Operating Environment"
+    repositories:
+      - name: "Red Hat Satellite Client 6 for RHEL 9 x86_64 RPMs"
+        product: "Red Hat Enterprise Linux for x86_64"
+      - name: "Red Hat Enterprise Linux 9 for x86_64 - BaseOS RPMs 9"
+        product: "Red Hat Enterprise Linux for x86_64"
+      - name: "Red Hat Enterprise Linux 9 for x86_64 - AppStream RPMs 9"
+        product: "Red Hat Enterprise Linux for x86_64"
+    validate_certs: false
+
+- name: "Add a Content View Filter"
+  redhat.satellite.content_view_filter:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    name: "ErrataByDate"
+    content_view: "{{ foreman_content_view }}"
+    filter_type: erratum
+    inclusion: true
+    validate_certs: false
+
+- name: "Add a Content View Filter Rule"
+  redhat.satellite.content_view_filter_rule:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    content_view: "{{ foreman_content_view }}"
+    content_view_filter: "ErrataByDate"
+    date_type: updated
+    types:
+      - bugfix
+      - security
+      - enhancement
+    end_date: "{{ foreman_cv_initial_end_date }}"
+    validate_certs: false
+
+- name: "Publish the Content View and promote the initial version to Library, Dev & Prod"
+  redhat.satellite.content_view_version:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    content_view: "{{ foreman_content_view }}"
+    description: "Initial publishment"
+    lifecycle_environments:
+      - Library
+      - Development
+      - Production
+    validate_certs: false
+
+- name: "Create client Activation Keys for each lifecycle"
+  redhat.satellite.activation_key:
+    username: "{{ foreman_admin_username }}"
+    password: "{{ foreman_admin_passwd }}"
+    server_url: "https://{{ satellite_public_dns_name }}"
+    organization: "{{ foreman_organization }}"
+    name: "{{ foreman_activation_key_name }}_{{ item }}"
+    content_view: "{{ foreman_content_view }}"
+    lifecycle_environment: "{{ item }}"
+    validate_certs: false
+  loop:
+    - Library
+    - Development
+    - Production

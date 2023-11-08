@@ -1,0 +1,19 @@
+---
+# vars file for managed
+foreman_organization: My_Organization
+foreman_location: Tokyo
+foreman_admin_username: admin # usually don't need to be changed
+foreman_content_view: "RHEL9_SOE" # usually don't need to be changed
+
+mysql_wp_user: wordpress # usually don't need to be changed
+mysql_wp_database: wordpress # usually don't need to be changed
+
+wp_archive_url: "https://wordpress.org/wordpress-6.3.2.tar.gz" # remote path to the WordPress archive file
+
+# These are the WordPress default weblog settings
+wp_weblog_title: "DemoSite" # usually don't need to be changed
+wp_user_name: "anonuser" # usually don't need to be changed
+wp_admin_password: "CHANGEME!" # just for WordPress admin
+wp_allow_weak_pass: true # usually don't need to be changed
+wp_admin_email: "anonuser@example.com" # usually don't need to be changed
+wp_blog_public: false # usually don't need to be changed

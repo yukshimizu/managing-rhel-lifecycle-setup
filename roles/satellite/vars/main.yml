@@ -1,0 +1,11 @@
+---
+# vars file for satellite
+local_manifest_path: "/path_to/satellite_manifest.zip" # local path to the satellite manifest file
+
+foreman_organization: My_Organization
+foreman_location: Tokyo
+foreman_admin_username: admin # usually don't need to be changed
+foreman_manifest_path: "/root/satellite_manifest.zip" # path to the satellite manifest file uploaded
+foreman_content_view: "RHEL9_SOE" # usually don't need to be changed
+foreman_cv_initial_end_date: "2023-07-31" # this date depends on when RHEL9 golden image is created
+foreman_activation_key_name: "Demo_Key" # usually don't need to be changed

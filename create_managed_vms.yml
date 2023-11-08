@@ -1,0 +1,179 @@
+---
+- name: Create managed VMs
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+
+  vars_prompt:
+    - name: aws_keypair_name
+      prompt: "Enter your AWS keypair name"
+      private: false
+
+  tasks:
+    - name: Fail if variables not defined
+      ansible.builtin.assert:
+        that:
+          - aws_region is defined
+          - aws_vpc_subnet_name is defined
+          - aws_securitygroup_name is defined
+          - aws_keypair_name is defined
+          - aws_managed_instance_ami is defined
+          - aws_managed_instance_size is defined
+          - managed_vms_name_prefix is defined
+          - managed_vms_type is defined
+          - managed_vms_environment is defined
+          - purpose is defined
+        fail_msg: "Required variables not set"
+
+    - name: Check if the VM is already provisioned
+      amazon.aws.ec2_instance_info:
+        filters:
+          "tag:Name": "{{ managed_vms_name_prefix }}-*"
+          "tag:type": "{{ managed_vms_type }}"
+          "tag:purpose": "{{ purpose }}"
+          instance-state-name:
+            - pending
+            - running
+            - shutting-down
+            - stopping
+            - stopped
+        region: "{{ aws_region }}"
+      register: existing_vms
+
+    - name: Output the IP of existing VM
+      ansible.builtin.debug:
+        msg:
+          - "The managed instances look like already provisioned. Please check the instances."
+          - "Public IP for new instance: {{ item.public_ip_address }}"
+          - "Private IP for new instance: {{ item.private_ip_address }}"
+      loop: "{{ existing_vms.instances }}"
+      when: existing_vms.instances is defined and existing_vms.instances | length > 0
+
+    - name: Create Instances
+      when: existing_vms.instances | length == 0
+      block:
+        - name: Get subnet info
+          amazon.aws.ec2_vpc_subnet_info:
+            region: "{{ aws_region }}"
+            filters:
+              "tag:Name": "{{ aws_vpc_subnet_name }}"
+          register: aws_subnet
+          when: aws_subnet_id is not defined
+
+        - name: Save subnet id
+          ansible.builtin.set_fact:
+            aws_subnet_id: "{{ aws_subnet.subnets | map(attribute='id') | list | last }}"
+          when: aws_subnet_id is not defined
+
+        - name: Create the instance
+          amazon.aws.ec2_instance:
+            network:
+              assign_public_ip: true
+              delete_on_termination: true
+            key_name: "{{ aws_keypair_name }}"
+            instance_type: "{{ aws_managed_instance_size }}"
+            image_id: "{{ aws_managed_instance_ami }}"
+            region: "{{ aws_region }}"
+            security_group: "{{ aws_securitygroup_name }}"
+            tags:
+              Name: "{{ managed_vms_name_prefix }}-{{ item }}"
+              environment: "{{ item }}"
+              type: "{{ managed_vms_type }}"
+              purpose: "{{ purpose }}"
+            volumes:
+              - device_name: /dev/sda1
+                ebs:
+                  volume_size: 100
+                  delete_on_termination: true
+            wait: true
+            vpc_subnet_id: "{{ aws_subnet_id }}"
+          register: aws_ec2_instance
+          loop: "{{ managed_vms_environment }}"
+
+        - name: Output the IP of new VM
+          ansible.builtin.debug:
+            msg:
+              - "Public IP for new instance: {{ item.instances[0].public_ip_address | default('') }}"
+              - "Private IP for new instance: {{ item.instances[0].private_ip_address | default('') }}"
+          loop: "{{ aws_ec2_instance.results }}"
+          when: aws_ec2_instance.results is defined and aws_ec2_instance.results | length > 0
+
+        - name: Wait for EC2 instance to be ready
+          ansible.builtin.wait_for:
+            delay: 60
+            host: "{{ item.instances[0].public_dns_name }}"
+            port: 22
+            state: started
+            timeout: 300
+          loop: "{{ aws_ec2_instance.results }}"
+          when: aws_ec2_instance.results is defined and aws_ec2_instance.results | length > 0
+
+        - name: Add the instance to each group
+          ansible.builtin.add_host:
+            name: "{{ item.instances[0].public_dns_name }}"
+            groups: "{{ item.instances[0].tags.environment }}"
+          loop: "{{ aws_ec2_instance.results }}"
+          when: aws_ec2_instance.results is defined and aws_ec2_instance.results | length > 0
+
+- name: Discover the satellite server
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+
+  tasks:
+    - name: Check if the VM is already started
+      amazon.aws.ec2_instance_info:
+        filters:
+          "tag:Name": "{{ satellite_vm_name }}"
+          "tag:environment": "{{ satellite_vm_environment }}"
+          "tag:type": "{{ satellite_vm_type }}"
+          "tag:purpose": "{{ purpose }}"
+          instance-state-name:
+            - running
+        region: "{{ aws_region }}"
+      register: satellite_vm
+
+    - name: Set private_dns_name
+      ansible.builtin.set_fact:
+        private_dns_name: "{{ satellite_vm.instances[0].private_dns_name }}"
+      when: satellite_vm.instances is defined and satellite_vm.instances | length > 0
+
+- name: Configure dev server
+  hosts: dev
+  become: true
+  gather_facts: true
+  vars:
+    foreman_lifecycle: "Development"
+    satellite_private_dns_name: "{{ hostvars.localhost.private_dns_name }}"
+
+  vars_prompt:
+    - name: foreman_admin_passwd
+      prompt: "Enter your Satellite admin password"
+    - name: mysql_root_passwd
+      prompt: "Enter your MySQL root password for WordPress"
+    - name: mysql_wp_passwd
+      prompt: "Enter your MySQL user password for WordPress"
+  
+  roles:
+    - managed
+
+- name: Configure prod server
+  hosts: prod
+  become: true
+  gather_facts: true
+  vars:
+    foreman_lifecycle: "Production"
+    satellite_private_dns_name: "{{ hostvars.localhost.private_dns_name }}"
+
+  vars_prompt:
+    - name: foreman_admin_passwd
+      prompt: "Enter your Satellite admin password"
+    - name: mysql_root_passwd
+      prompt: "Enter your MySQL root password for WordPress"
+    - name: mysql_wp_passwd
+      prompt: "Enter your MySQL user password for WordPress"
+  
+  roles:
+    - managed

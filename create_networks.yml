@@ -1,0 +1,110 @@
+---
+- name: Create a Virtual Private Cloud (VPC)
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+
+  tasks:
+    - name: Fail if variables not defined
+      ansible.builtin.assert:
+        that:
+          - aws_region is defined
+          - aws_vpc is defined
+          - aws_vpc_cidr_block is defined
+          - aws_subnet_cidr_block is defined
+          - aws_vpc_subnet_name is defined
+          - aws_igw_name is defined
+          - aws_routetable_name is defined
+          - aws_securitygroup_name is defined
+          - purpose is defined
+        fail_msg: "Required variables not set"
+
+    - name: Create a vpc
+      amazon.aws.ec2_vpc_net:
+        region: "{{ aws_region }}"
+        name: "{{ aws_vpc }}"
+        cidr_block: "{{ aws_vpc_cidr_block }}"
+        tags:
+          purpose: "{{ purpose }}"
+      register: result
+
+    - name: Set vpc_id as fact
+      set_fact:
+        vpc_id: "{{ result.vpc.id }}"
+
+    - name: Add a gateway
+      amazon.aws.ec2_vpc_igw:
+        region: "{{ aws_region }}"
+        vpc_id: "{{ vpc_id }}"
+        tags:
+          Name: "{{ aws_igw_name }}"
+          purpose: "{{ purpose }}"
+      register: igw
+
+    - name: Create a demo subnet
+      amazon.aws.ec2_vpc_subnet:
+        region: "{{ aws_region }}"
+        vpc_id: "{{ vpc_id }}"
+        cidr: "{{ aws_subnet_cidr_block }}"
+        tags:
+          Name: "{{ aws_vpc_subnet_name }}"
+          purpose: "{{ purpose }}"
+
+    - name: Set routes
+      amazon.aws.ec2_vpc_route_table:
+        region: "{{ aws_region }}"
+        vpc_id: "{{ vpc_id }}"
+        tags:
+          Name: "{{ aws_routetable_name }}"
+          purpose: "{{ purpose }}"
+        subnets:
+          - "{{ aws_subnet_cidr_block }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw.gateway_id }}"
+
+    - name: Create a demo security group
+      amazon.aws.ec2_group:
+        name: "{{ aws_securitygroup_name }}"
+        region: "{{ aws_region }}"
+        description: allow http and https access to web servers
+        vpc_id: "{{ vpc_id }}"
+        tags:
+          purpose: "{{ purpose }}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 443
+            to_port: 443
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 5910
+            to_port: 5930
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 8000
+            to_port: 8000
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 8140
+            to_port: 8140
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 8443
+            to_port: 8443
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 9000
+            to_port: 9000
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0

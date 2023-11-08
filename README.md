@@ -11,6 +11,8 @@ This repo includes ansible playbooks and roles for setting up a demo environment
 - Single Ansible Automation Controller
 
 The setup looks like the following:
+<img width="1070" alt="スクリーンショット 2023-11-08 9 59 19" src="https://github.com/yukshimizu/managing-rhel-lifecycle-setup/assets/24378327/574ddaf5-a8cd-41d8-a060-f8893caf74b9">
+
 
 ## Included contents
 ### Roles

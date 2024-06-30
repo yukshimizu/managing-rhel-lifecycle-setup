@@ -10,7 +10,7 @@ Basically, the role assumes to setup an Ansible Automation Controller using Red 
 
 The tested environment:
 - RHEL-9.2.0_HVM-20230615-x86_64-3-Access2-GP2
-- Ansible Automation Platform 2.4.2
+- Ansible Automation Platform 2.4
 
 A Red Hat Account and related Red Hat Ansible Automation Platform Subscription are requird, because you need to supply a manifest file linked to the subscription.
 

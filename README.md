@@ -1,5 +1,5 @@
 # managing-rhel-lifecycle-setup
-This repo includes ansible playbooks and roles for setting up a demo environment of automating content management in Red Hat Satellite with Red Hat Ansible Automation Platform on AWS EC2.
+This repo includes ansible playbooks and roles for setting up [a demo environment](https://github.com/yukshimizu/managing-rhel-lifecycle-demo) of automating content management in Red Hat Satellite with Red Hat Ansible Automation Platform on AWS EC2.
 
 ## Environment to be set up
 - Single VPC
@@ -11,7 +11,7 @@ This repo includes ansible playbooks and roles for setting up a demo environment
 - Single Ansible Automation Controller
 
 The setup looks like the following:
-<img width="1070" alt="スクリーンショット 2023-11-08 9 59 19" src="https://github.com/yukshimizu/managing-rhel-lifecycle-setup/assets/24378327/574ddaf5-a8cd-41d8-a060-f8893caf74b9">
+<img width="1398" alt="managing-rhel-lifecycle-setup" src="https://github.com/yukshimizu/managing-rhel-lifecycle-setup/assets/24378327/1d0a6507-ea82-4f23-bb75-eb491b0e55ac">
 
 
 ## Included contents
@@ -32,6 +32,7 @@ The setup looks like the following:
 |`create_managed_vms.yml`|[roles.managed](roles/managed/README.md)|Create AWS instances and set up managed servers.|
 |`delete_managed_vms.yml`|N/A|Delete the instances created in `create_managed_vms` playbook.|
 |`create_aac_vm.yml`|[roles.aac](roles/aac/README.md)|Create an AWS instance and set up Ansible Automation Controller.|
+|`create_aac_demo.yml`|N/A|Create the Demo environment on Ansible Automation Controller.|
 |`delete_aac_vm.yml`|N/A|Delete the instance created in `create_aac_vm` playbook.|
 
 
@@ -181,6 +182,24 @@ aac_pg_passwd # PostgreSQL password for your AAC deployment
 This playbook can run after running `create_networks` playbook.
 ```
 $ ansible-playbook create_aac_vm.yml
+```
+### Create Demo Environment
+Optionally, you can create [the demo environment](https://github.com/yukshimizu/managing-rhel-lifecycle-demo) by running this playbook. These variables should be set in the playbook. Please refer to [Configuring Red Hat automation hub as the primary source for content](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.4/html-single/getting_started_with_automation_hub/index#configure-hub-primary) for the variables related to automation hub. 
+```
+aws_local_ssh_key_file: "Replace with your aws local ssh key file path"
+automation_hub_url: "Replace with your API endpoint required to download certified content from Automation Hub"
+automation_hub_auth_url: "Replace wit your Authentication URL required to download content from Automation Hub"
+automation_hub_token: "Replace with your offline token"
+demo_scm_url: "https://github.com/yukshimizu/managing-rhel-lifecycle-demo" # Your git repository for demo contents
+```
+And, the following variables are prompted at run-time.
+```
+aac_public_dns # Public DNS name for your AAC
+aac_admin_passwd # Password for your AAC admin user
+```
+This playbook can run after running `create_aac_vm` playbook.
+```
+$ ansible-playbook create_aac_demo.yml
 ```
 ### Clean up the environment
 All the delete resource playbooks corresponding to each create resource playbook are avaialble. Those playbooks can run assuming related variables have already set previously.

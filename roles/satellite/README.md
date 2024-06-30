@@ -10,7 +10,7 @@ Basically, the role assumes to setup Sattelite using Red Hat Cloud Access Gold I
 
 The tested environment:
 - RHEL-8.8.0_HVM-20230802-x86_64-64-Access2-GP2
-- Satellite 6.13
+- Satellite 6.13 and 6.15
 
 A Red Hat Account and related Red Hat Satellite Infrastructure Subscription are requird, because you need to supply a manifest file linked to the subscription.
 

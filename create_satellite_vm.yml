@@ -4,7 +4,7 @@
   gather_facts: false
   vars:
     aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
-  
+
   vars_prompt:
     - name: aws_keypair_name
       prompt: "Enter your AWS keypair name"
@@ -46,7 +46,6 @@
       ansible.builtin.debug:
         msg:
           - "The Satellite instance looks like already provisioned. Please check the instance."
-          - "Public IP for the instance: {{ existing_vm.instances[0].public_ip_address }}"
           - "Private IP for the instance: {{ existing_vm.instances[0].private_ip_address }}"
       when: existing_vm.instances is defined and existing_vm.instances | length > 0
 
@@ -135,4 +134,3 @@
 
   roles:
     - satellite
-

@@ -45,7 +45,6 @@
       ansible.builtin.debug:
         msg:
           - "The managed instances look like already provisioned. Please check the instances."
-          - "Public IP for new instance: {{ item.public_ip_address }}"
           - "Private IP for new instance: {{ item.private_ip_address }}"
       loop: "{{ existing_vms.instances }}"
       when: existing_vms.instances is defined and existing_vms.instances | length > 0
@@ -155,7 +154,7 @@
       prompt: "Enter your MySQL root password for WordPress"
     - name: mysql_wp_passwd
       prompt: "Enter your MySQL user password for WordPress"
-  
+
   roles:
     - managed
 
@@ -174,6 +173,6 @@
       prompt: "Enter your MySQL root password for WordPress"
     - name: mysql_wp_passwd
       prompt: "Enter your MySQL user password for WordPress"
-  
+
   roles:
     - managed

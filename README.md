@@ -8,10 +8,10 @@ This repo includes ansible playbooks and roles for setting up [a demo environmen
 - Single gateway
 - Single Satellite server
 - Single managed server for dev and prod respectively
-- Single Ansible Automation Controller
+- Single Ansible Automation Platform
 
 The setup looks like the following:
-<img width="1398" alt="managing-rhel-lifecycle-setup" src="https://github.com/yukshimizu/managing-rhel-lifecycle-setup/assets/24378327/1d0a6507-ea82-4f23-bb75-eb491b0e55ac">
+![](./images/managing-rhel-lifecycle-setup.png)
 
 
 ## Included contents
@@ -20,7 +20,7 @@ The setup looks like the following:
 |:--------|:----------|
 |satellite|A role to create a simple Satellite server on AWS EC2.|
 |managed  |A role to create managed servers under the Satellite server's control on AWS EC2.|
-|aac      |A role to create an Ansible Automation Controller on AWS EC2.|
+|aap      |A role to create an Ansible Automation Platform on AWS EC2.|
 
 ### Playbooks
 |Name     |Role Used|Description|
@@ -31,19 +31,17 @@ The setup looks like the following:
 |`delete_satellite_vm.yml`|N/A|Delete the instance created in `create_satellite_vm` playbook.|
 |`create_managed_vms.yml`|[roles.managed](roles/managed/README.md)|Create AWS instances and set up managed servers.|
 |`delete_managed_vms.yml`|N/A|Delete the instances created in `create_managed_vms` playbook.|
-|`create_aac_vm.yml`|[roles.aac](roles/aac/README.md)|Create an AWS instance and set up Ansible Automation Controller.|
-|`create_aac_demo.yml`|N/A|Create the Demo environment on Ansible Automation Controller.|
-|`delete_aac_vm.yml`|N/A|Delete the instance created in `create_aac_vm` playbook.|
+|`create_aap_vm.yml`|[roles.aap](roles/aap/README.md)|Create an AWS instance and set up Ansible Automation Platform.|
+|`delete_aap_vm.yml`|N/A|Delete the instance created in `create_aap_vm` playbook.|
 
 
 ## Prerequisites
 ### Basic requirements for Ansible
 Any control node:
-- ansible core 2.15+
+- ansible core 2.18+
 
 Ansible collections:
 - amazon.aws
-- awx.awx
 - community.crypto
 - community.mysql
 - redhat.rhel_system_roles
@@ -70,7 +68,7 @@ $ export AWS_SECRET_ACCESS_KEY=wJatrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 ### Subscriptions
 Basically, the demo environment requires to get access to Red Hat gold image, so you must have a matching Red Hat product subscription and must connect their cloud provider accounts to Red Hat.
-Please refer to the [Cloud Access user interface](https://access.redhat.com/management/cloud) or Cloud Sources on [cloud.redhat.com](https://cloud.redhat.com/) as described in [Chapter 2, Getting started with Cloud Access](https://access.redhat.com/documentation/en-us/subscription_central/2023/html/red_hat_cloud_access_reference_guide/getting-started-with-ca_cloud-access).
+Please refer to the [Cloud Access user interface](https://access.redhat.com/management/cloud) or Cloud Sources on [cloud.redhat.com](https://cloud.redhat.com/) as described in [Chapter 8, Red Hat Cloud Access program overview](https://access.redhat.com/documentation/en-us/subscription_central/2023/html/red_hat_cloud_access_reference_guide/getting-started-with-ca_cloud-access).
 
 Required subscriptions:
 - Red Hat Enterprise Linux for x86_64
@@ -81,13 +79,13 @@ Required subscriptions:
 ### Create required network resources
 These variables should be set in group_vars beforehand.
 ```
-aws_vpc: demo_vpc
-aws_vpc_cidr_block: 10.0.0.0/16 # adjust with your preference
-aws_vpc_subnet_name: demo_subnet
-aws_subnet_cidr_block: 10.0.1.0/24 # adjust with your preference
-aws_igw_name: demo_gtw
-aws_routetable_name: demo_rtb
-aws_securitygroup_name: demo_sg
+aws_vpc: rhel_demo_vpc
+aws_vpc_cidr_block: 10.3.0.0/16 # adjust with your preference
+aws_vpc_subnet_name: rhel_demo_subnet
+aws_subnet_cidr_block: 10.3.1.0/24 # adjust with your preference
+aws_igw_name: rhel_demo_gtw
+aws_routetable_name: rhel_demo_rtb
+aws_securitygroup_name: rhel_demo_sg
 
 purpose: demo
 ```
@@ -100,9 +98,9 @@ $ ansible-playbook create_networks.yml
 ### Create Satellite server
 These variables should be set in group_vars beforehand.
 ```
-aws_vpc_subnet_name: demo_subnet
-aws_securitygroup_name: demo_sg
-aws_satellite_instance_ami: ami-08c8784e357ec2d8b # ami of RHEL-8.8.0_HVM-20230802-x86_64-64-Access2-GP2
+aws_vpc_subnet_name: rhel_demo_subnet
+aws_securitygroup_name: rhel_demo_sg
+aws_satellite_instance_ami: ami-07b1660a28c21d579 # ami of RHEL-9.6.0_HVM-20251030-x86_64-0-Access2-GP3
 aws_satellite_instance_size: t2.2xlarge # should not be modified
 
 satellite_vm_type: satellite # should not be modified
@@ -117,7 +115,7 @@ And, the following variables are prompted at run-time. Also refer to [roles.sate
 aws_keypair_name # Your AWS key pair name corresponding to the private key
 rhsm_username # Your Red Hat login name
 rhsm_passwd # Password for your Red Hat login
-foreman_admin_passwd # Password for your Satellite admin user
+satellite_admin_passwd # Password for your Satellite admin user
 ```
 
 This playbook can run after running `create_networks` playbook.
@@ -128,9 +126,9 @@ $ ansible-playbook create_satellite_vm.yml
 ### Create managed servers
 These variables should be set in group_vars beforehand.
 ```
-aws_vpc_subnet_name: demo_subnet
-aws_securitygroup_name: demo_sg
-aws_managed_instance_ami: ami-04fd9e98c56fe4d28 # ami of RHEL-9.2.0_HVM-20230615-x86_64-3-Access2-GP2
+aws_vpc_subnet_name: rhel_demo_subnet
+aws_securitygroup_name: rhel_demo_sg
+aws_managed_instance_ami: ami-00a44da875e6a2209 # ami of RHEL-9.4.0_HVM-20240423-x86_64-62-Access2-GP3
 aws_managed_instance_size: t2.small # can be bigger instance size
 
 managed_vms_type: managed # should not be modified
@@ -145,7 +143,7 @@ purpose: demo
 And, the following variables are prompted at run-time.  Also refer to [roles.managed](roles/managed/README.md) for the role details.
 ```
 aws_keypair_name # Your AWS key pair name corresponding to the private key
-foreman_admin_passwd # Password for your Satellite admin user
+satellite_admin_passwd # Password for your Satellite admin user
 mysql_root_passwd # MySQL root password for WordPress
 mysql_wp_passwd # MySQL user password for WordPress
 ```
@@ -155,51 +153,34 @@ This playbook can run after running `create_satellite_vm` playbook.
 $ ansible-playbook create_managed_vms.yml
 ```
 
-### Create Ansible Automation Controller
+### Create Ansible Automation Platform
 These variables should be set in group_vars beforehand.
 ```
-aws_vpc_subnet_name: demo_subnet
-aws_securitygroup_name: demo_sg
-aws_aac_instance_ami: ami-04fd9e98c56fe4d28 # ami of RHEL-9.2.0_HVM-20230615-x86_64-3-Access2-GP2
-aws_aac_instance_size: t2.xlarge # should not be modified
+aws_vpc_subnet_name: rhel_demo_subnet
+aws_securitygroup_name: rhel_demo_sg
+aws_aap_instance_ami: ami-07b1660a28c21d579 # ami of RHEL-9.6.0_HVM-20251030-x86_64-0-Access2-GP3
+aws_aap_instance_size: t2.xlarge # should not be modified
 
-aac_vm_type: aac # should not be modified
-aac_vm_environment: mgmt # should not be modified
-aac_vm_name: aac01
+aap_vm_type: aap # should not be modified
+aap_vm_environment: mgmt # should not be modified
+aap_vm_name: aap01
 
 purpose: demo
 ```
 
-And, the following variables are prompted at run-time. Also refer to [roles.aac](roles/aac/README.md) for the role details.
+And, the following variables are prompted at run-time. Also refer to [roles.aap](roles/aap/README.md) for the role details.
 ```
 aws_keypair_name # Your AWS key pair name corresponding to the private key
 rhsm_username # Your Red Hat login name
 rhsm_passwd # Password for your Red Hat login
-aac_admin_passwd # Password for your AAC admin user
-aac_pg_passwd # PostgreSQL password for your AAC deployment
+aap_admin_passwd # Password for your AAP admin user
+aap_pg_passwd # PostgreSQL password for your AAP deployment
 ```
 
 This playbook can run after running `create_networks` playbook.
 ```
-$ ansible-playbook create_aac_vm.yml
+$ ansible-playbook create_aap_vm.yml
 ```
-### Create Demo Environment
-Optionally, you can create [the demo environment](https://github.com/yukshimizu/managing-rhel-lifecycle-demo) by running this playbook. These variables should be set in the playbook. Please refer to [Configuring Red Hat automation hub as the primary source for content](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.4/html-single/getting_started_with_automation_hub/index#configure-hub-primary) for the variables related to automation hub. 
-```
-aws_local_ssh_key_file: "Replace with your aws local ssh key file path"
-automation_hub_url: "Replace with your API endpoint required to download certified content from Automation Hub"
-automation_hub_auth_url: "Replace wit your Authentication URL required to download content from Automation Hub"
-automation_hub_token: "Replace with your offline token"
-demo_scm_url: "https://github.com/yukshimizu/managing-rhel-lifecycle-demo" # Your git repository for demo contents
-```
-And, the following variables are prompted at run-time.
-```
-aac_public_dns # Public DNS name for your AAC
-aac_admin_passwd # Password for your AAC admin user
-```
-This playbook can run after running `create_aac_vm` playbook.
-```
-$ ansible-playbook create_aac_demo.yml
-```
+
 ### Clean up the environment
 All the delete resource playbooks corresponding to each create resource playbook are avaialble. Those playbooks can run assuming related variables have already set previously.

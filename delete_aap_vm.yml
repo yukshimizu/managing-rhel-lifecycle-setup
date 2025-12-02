@@ -1,5 +1,5 @@
 ---
-- name: Delete AAC VM
+- name: Delete the AAP VM
   hosts: localhost
   gather_facts: false
   vars:
@@ -10,18 +10,16 @@
       ansible.builtin.assert:
         that:
           - aws_region is defined
-          - aac_vm_name is defined
-          - aac_vm_environment is defined
-          - aac_vm_type is defined
+          - aap_vm_name is defined
+          - aap_vm_type is defined
           - purpose is defined
         fail_msg: "Required variables not set"
 
     - name: Check if the demo VM is already provisioned
       amazon.aws.ec2_instance_info:
         filters:
-          "tag:Name": "{{ aac_vm_name }}"
-          "tag:environment": "{{ aac_vm_environment }}"
-          "tag:type": "{{ aac_vm_type }}"
+          "tag:Name": "{{ aap_vm_name }}"
+          "tag:type": "{{ aap_vm_type }}"
           "tag:purpose": "{{ purpose }}"
           instance-state-name:
             - pending

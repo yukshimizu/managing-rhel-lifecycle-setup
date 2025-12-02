@@ -1,6 +1,7 @@
 ---
-# handlers file for aac
+# handlers file for aap
 - name: Dnf clean
   ansible.builtin.command: dnf clean all
   register: cmd_output
   changed_when: cmd_output.rc == 0
+  become: true

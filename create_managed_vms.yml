@@ -144,11 +144,11 @@
   become: true
   gather_facts: true
   vars:
-    foreman_lifecycle: "Development"
+    satellite_lifecycle: "Development"
     satellite_private_dns_name: "{{ hostvars.localhost.private_dns_name }}"
 
   vars_prompt:
-    - name: foreman_admin_passwd
+    - name: satellite_admin_passwd
       prompt: "Enter your Satellite admin password"
     - name: mysql_root_passwd
       prompt: "Enter your MySQL root password for WordPress"
@@ -163,11 +163,11 @@
   become: true
   gather_facts: true
   vars:
-    foreman_lifecycle: "Production"
+    satellite_lifecycle: "Production"
     satellite_private_dns_name: "{{ hostvars.localhost.private_dns_name }}"
 
   vars_prompt:
-    - name: foreman_admin_passwd
+    - name: satellite_admin_passwd
       prompt: "Enter your Satellite admin password"
     - name: mysql_root_passwd
       prompt: "Enter your MySQL root password for WordPress"

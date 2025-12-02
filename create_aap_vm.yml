@@ -1,5 +1,5 @@
 ---
-- name: Create an AAC VM
+- name: Create an AAP VM
   hosts: localhost
   gather_facts: false
   vars:
@@ -18,20 +18,18 @@
           - aws_vpc_subnet_name is defined
           - aws_securitygroup_name is defined
           - aws_keypair_name is defined
-          - aws_aac_instance_ami is defined
-          - aws_aac_instance_size is defined
-          - aac_vm_name is defined
-          - aac_vm_environment is defined
-          - aac_vm_type is defined
+          - aws_aap_instance_ami is defined
+          - aws_aap_instance_size is defined
+          - aap_vm_name is defined
+          - aap_vm_type is defined
           - purpose is defined
         fail_msg: "Required variables not set"
 
     - name: Check if the VM is already provisioned
       amazon.aws.ec2_instance_info:
         filters:
-          "tag:Name": "{{ aac_vm_name }}"
-          "tag:environment": "{{ aac_vm_environment }}"
-          "tag:type": "{{ aac_vm_type }}"
+          "tag:Name": "{{ aap_vm_name }}"
+          "tag:type": "{{ aap_vm_type }}"
           "tag:purpose": "{{ purpose }}"
           instance-state-name:
             - pending
@@ -45,7 +43,7 @@
     - name: Output the IP of existing VM
       ansible.builtin.debug:
         msg:
-          - "The Satellite instance looks like already provisioned. Please check the instance."
+          - "The AAP instance looks like already provisioned. Please check the instance."
           - "Private IP for the instance: {{ existing_vm.instances[0].private_ip_address }}"
       when: existing_vm.instances is defined and existing_vm.instances | length > 0
 
@@ -71,19 +69,18 @@
               assign_public_ip: true
               delete_on_termination: true
             key_name: "{{ aws_keypair_name }}"
-            instance_type: "{{ aws_aac_instance_size }}"
-            image_id: "{{ aws_aac_instance_ami }}"
+            instance_type: "{{ aws_aap_instance_size }}"
+            image_id: "{{ aws_aap_instance_ami }}"
             region: "{{ aws_region }}"
             security_group: "{{ aws_securitygroup_name }}"
             tags:
-              Name: "{{ aac_vm_name }}"
-              environment: "{{ aac_vm_environment }}"
-              type: "{{ aac_vm_type }}"
+              Name: "{{ aap_vm_name }}"
+              type: "{{ aap_vm_type }}"
               purpose: "{{ purpose }}"
             volumes:
               - device_name: /dev/sda1
                 ebs:
-                  volume_size: 200
+                  volume_size: 100
                   delete_on_termination: true
             wait: true
             vpc_subnet_id: "{{ aws_subnet_id }}"
@@ -105,10 +102,10 @@
             timeout: 300
           when: aws_ec2_instance.instances is defined and aws_ec2_instance.instances | length > 0
 
-        - name: Add the instance to the aac group
+        - name: Add the instance to the aap group
           ansible.builtin.add_host:
             name: "{{ aws_ec2_instance.instances[0].public_dns_name }}"
-            groups: aac
+            groups: aap
           when: aws_ec2_instance.instances is defined and aws_ec2_instance.instances | length > 0
 
         - name: Set private_dns_name
@@ -116,12 +113,11 @@
             private_dns_name: "{{ aws_ec2_instance.instances[0].private_dns_name }}"
           when: aws_ec2_instance.instances is defined and aws_ec2_instance.instances | length > 0
 
-- name: Configure AAC server
-  hosts: aac
-  become: true
+- name: Configure AAP server
+  hosts: aap
   gather_facts: true
   vars:
-    aac_private_dns_name: "{{ hostvars.localhost.private_dns_name }}"
+    aap_private_dns_name: "{{ hostvars.localhost.private_dns_name }}"
 
   vars_prompt:
     - name: rhsm_username
@@ -129,10 +125,10 @@
       private: false
     - name: rhsm_passwd
       prompt: "What is your Red Hat login password?"
-    - name: aac_admin_passwd
-      prompt: "Enter your AAC admin password"
-    - name: aac_pg_passwd
-      prompt: "Enter your PostgreSQL password for AAC"
+    - name: aap_admin_passwd
+      prompt: "Enter your AAP admin password"
+    - name: aap_pg_passwd
+      prompt: "Enter your PostgreSQL password for AAP"
 
   roles:
-    - aac
+    - aap

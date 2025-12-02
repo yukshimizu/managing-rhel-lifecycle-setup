@@ -1,20 +1,20 @@
 ---
-aws_vpc: demo_vpc
-aws_vpc_cidr_block: 10.0.0.0/16 # adjust with your preference
-aws_vpc_subnet_name: demo_subnet
-aws_subnet_cidr_block: 10.0.1.0/24 # adjust with your preference
-aws_igw_name: demo_gtw
-aws_routetable_name: demo_rtb
-aws_securitygroup_name: demo_sg
+aws_vpc: rhel_demo_vpc
+aws_vpc_cidr_block: 10.3.0.0/16 # adjust with your preference
+aws_vpc_subnet_name: rhel_demo_subnet
+aws_subnet_cidr_block: 10.3.1.0/24 # adjust with your preference
+aws_igw_name: rhel_demo_gtw
+aws_routetable_name: rhel_demo_rtb
+aws_securitygroup_name: rhel_demo_sg
 
 purpose: demo
 
-aws_satellite_instance_ami: ami-08c8784e357ec2d8b # ami of RHEL-8.8.0_HVM-20230802-x86_64-64-Access2-GP2
+aws_satellite_instance_ami: ami-07b1660a28c21d579 # ami of RHEL-9.6.0_HVM-20251030-x86_64-0-Access2-GP3
 aws_satellite_instance_size: t2.2xlarge # should not be modified
-aws_managed_instance_ami: ami-04fd9e98c56fe4d28 # ami of RHEL-9.2.0_HVM-20230615-x86_64-3-Access2-GP2
+aws_managed_instance_ami: ami-00a44da875e6a2209 # ami of RHEL-9.4.0_HVM-20240423-x86_64-62-Access2-GP3
 aws_managed_instance_size: t2.small # can be bigger instance size
-aws_aac_instance_ami: ami-04fd9e98c56fe4d28 # ami of RHEL-9.2.0_HVM-20230615-x86_64-3-Access2-GP2
-aws_aac_instance_size: t2.xlarge # should not be modified
+aws_aap_instance_ami: ami-07b1660a28c21d579 # ami of RHEL-9.6.0_HVM-20251030-x86_64-0-Access2-GP3
+aws_aap_instance_size: t2.xlarge # should not be modified
 
 satellite_vm_type: satellite # should not be modified
 satellite_vm_environment: mgmt # should not be modified
@@ -26,6 +26,6 @@ managed_vms_environment:
   - dev # should not be modified
   - prod # should not be modified
 
-aac_vm_type: aac # should not be modified
-aac_vm_environment: mgmt # should not be modified
-aac_vm_name: aac01
+aap_vm_type: aap # should not be modified
+aap_vm_environment: mgmt # should not be modified
+aap_vm_name: aap03

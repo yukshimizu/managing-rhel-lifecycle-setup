@@ -9,8 +9,8 @@ Requirements
 Basically, the role assumes to setup Sattelite using Red Hat Cloud Access Gold Images on AWS EC2. 
 
 The tested environment:
-- RHEL-8.8.0_HVM-20230802-x86_64-64-Access2-GP2
-- Satellite 6.13 and 6.15
+- RHEL-9.6.0_HVM-20251030-x86_64-0-Access2-GP3
+- Satellite 6.18
 
 A Red Hat Account and related Red Hat Satellite Infrastructure Subscription are requird, because you need to supply a manifest file linked to the subscription.
 
@@ -18,17 +18,18 @@ Role Variables
 --------------
 
 var/main.yml includes the following pre-set variables. You should change them adequately.
-- local_manifest_path
-- foreman_manifest_path
-- foreman_admin_username
-- foreman_organization
-- foreman_location
-- foreman_cv_initial_end_date
+- satellite_local_manifest_path
+- satellite_manifest_path
+- satellite_admin_username
+- satellite_organization
+- satellite_location
+- satellite_cv_initial_end_date
+- satellite_activation_key_name
 
 Also, the following variables should be supplied when using the role. In this project, upper playbooks are supposed to set these variables.
 - rhsm_username
 - rhsm_passwd
-- foreman_admin_passwd
+- satellite_admin_passwd
 - satellite_public_dns_name
 
 Dependencies
@@ -55,7 +56,7 @@ Example Playbook
           private: false
         - name: rhsm_passwd
           prompt: "What is your Red Hat login password?"
-        - name: foreman_admin_passwd
+        - name: satellite_admin_passwd
           prompt: "Enter your Satellite admin password"
 
       roles:

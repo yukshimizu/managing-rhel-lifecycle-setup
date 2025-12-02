@@ -129,7 +129,7 @@
       private: false
     - name: rhsm_passwd
       prompt: "What is your Red Hat login password?"
-    - name: foreman_admin_passwd
+    - name: satellite_admin_passwd
       prompt: "Enter your Satellite admin password"
 
   roles:

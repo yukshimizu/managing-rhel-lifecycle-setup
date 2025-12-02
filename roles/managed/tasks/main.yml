@@ -5,12 +5,12 @@
   ansible.builtin.assert:
     that:
       - satellite_private_dns_name is defined
-      - foreman_admin_username is defined
-      - foreman_admin_passwd is defined
-      - foreman_organization is defined
-      - foreman_location is defined
-      - foreman_lifecycle is defined
-      - foreman_content_view is defined
+      - satellite_admin_username is defined
+      - satellite_admin_passwd is defined
+      - satellite_organization is defined
+      - satellite_location is defined
+      - satellite_lifecycle is defined
+      - satellite_content_view is defined
       - mysql_root_passwd is defined
       - mysql_wp_user is defined
       - mysql_wp_passwd is defined
@@ -41,10 +41,10 @@
 - name: Register to Satellite
   redhat.rhel_system_roles.redhat_subscription:
     state: present
-    username: "{{ foreman_admin_username }}"
-    password: "{{ foreman_admin_passwd }}"
-    org_id: "{{ foreman_organization }}"
-    environment: "{{ foreman_lifecycle }}/{{ foreman_content_view }}"
+    username: "{{ satellite_admin_username }}"
+    password: "{{ satellite_admin_passwd }}"
+    org_id: "{{ satellite_organization }}"
+    environment: "{{ satellite_lifecycle }}/{{ satellite_content_view }}"
 
 - name: Patch rhsm config
   ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1

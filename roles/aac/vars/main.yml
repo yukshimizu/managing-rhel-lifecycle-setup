@@ -1,6 +1,0 @@
----
-# vars file for aac
-aac_local_installer_path: "/path_to/ansible-automation-platform-setup-2.4-7.tar.gz" # local path to the AAP setup file
-aac_installer_dest_path: "ansible-automation-platform-setup-2.4-7" # extracted directory name corresponding to the AAP setup file
-aac_local_manifest_path: "/path_to/ansible_manifest.zip" # local path to the ansible manifest file
-aac_manifest_path: "/root/ansible_manifest.zip" # path to the ansible manifest file uploaded

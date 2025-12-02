@@ -39,4 +39,3 @@
         region: "{{ aws_region }}"
         state: absent
       when: existing_vm.instances is defined and existing_vm.instances | length == 1
-      

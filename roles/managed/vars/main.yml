@@ -1,9 +1,10 @@
 ---
 # vars file for managed
-foreman_organization: My_Organization
-foreman_location: Tokyo
-foreman_admin_username: admin # usually don't need to be changed
-foreman_content_view: "RHEL9_SOE" # usually don't need to be changed
+# vars file for managed
+satellite_organization: My_Organization
+satellite_location: Tokyo
+satellite_admin_username: admin # usually don't need to be changed
+satellite_content_view: "RHEL9_SOE" # usually don't need to be changed
 
 mysql_wp_user: wordpress # usually don't need to be changed
 mysql_wp_database: wordpress # usually don't need to be changed

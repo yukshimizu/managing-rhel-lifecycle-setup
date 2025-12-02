@@ -9,8 +9,8 @@ Requirements
 Basically, the role assumes to setup RHEL servers using Red Hat Cloud Access Gold Images on AWS EC2. 
 
 The tested environment:
-- RHEL-9.2.0_HVM-20230615-x86_64-3-Access2-GP2
-- with Satellite 6.13
+- RHEL-9.4.0_HVM-20240423-x86_64-62-Access2-GP3
+- with Satellite 6.18
 - WordPress 6.3.2
 - MySQL 8.0
 
@@ -18,11 +18,11 @@ Role Variables
 --------------
 
 var/main.yml includes the following pre-set variables. You should change them adequately.
-- foreman_admin_username
-- foreman_organization
-- foreman_location
-- foreman_lifecycle
-- foreman_content_view
+- satellite_admin_username
+- satellite_organization
+- satellite_location
+- satellite_lifecycle
+- satellite_content_view
 - mysql_wp_user
 - wp_archive_url
 - wp_weblog_title
@@ -34,8 +34,8 @@ var/main.yml includes the following pre-set variables. You should change them ad
 
 Also, the following variables should be supplied when using the role. In this project, upper playbooks are supposed to set these variables.
 - satellite_private_dns_name
-- foreman_admin_passwd
-- foreman_lifecycle
+- satellite_admin_passwd
+- satellite_lifecycle
 - mysql_root_passwd
 - mysql_wp_passwd
 
@@ -55,11 +55,11 @@ Example Playbook
       become: true
       gather_facts: true
       vars:
-        foreman_lifecycle: "Development"
+        satellite_lifecycle: "Development"
         satellite_private_dns_name: "private dns name of satellite server"
 
       vars_prompt:
-        - name: foreman_admin_passwd
+        - name: satellite_admin_passwd
           prompt: "Enter your Satellite admin password"
         - name: mysql_root_passwd
           prompt: "Enter your MySQL root password for WordPress"

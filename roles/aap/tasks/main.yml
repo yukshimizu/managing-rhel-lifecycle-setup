@@ -1,0 +1,138 @@
+---
+# tasks file for aap
+
+- name: Fail if variables not defined
+  ansible.builtin.assert:
+    that:
+      - aap_private_dns_name is defined
+      - aap_base_dir is defined
+      - aap_local_installer_path is defined
+      - aap_installer_dest_path is defined
+      - aap_admin_passwd is defined
+      - aap_pg_passwd is defined
+      - rhsm_username
+      - rhsm_passwd
+    fail_msg: "Required variables not set"
+
+- name: Register to Red Hat Subscription Management
+  redhat.rhel_system_roles.redhat_subscription:
+    state: present
+    username: "{{ rhsm_username }}"
+    password: "{{ rhsm_passwd }}"
+  become: true
+
+- name: Patch rhsm config
+  ansible.builtin.command: subscription-manager config --rhsm.manage_repos=1
+  become: true
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+
+- name: Refresh rhsm config
+  ansible.builtin.command: subscription-manager refresh
+  become: true
+  register: cmd_output
+  changed_when: cmd_output.rc == 0
+  notify: Dnf clean
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Update all packages
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_only: true
+  become: true
+
+- name: Install ansible-core packages
+  ansible.builtin.dnf:
+    name:
+      - ansible-core
+    state: present
+  become: true
+
+- name: Copy and extract the AAP installer file
+  ansible.builtin.unarchive:
+    src: "{{ aap_local_installer_path }}"
+    dest: "{{ aap_base_dir }}"
+
+- name: Modify ansible_connection variable
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^ansible_connection='
+    line: "ansible_connection=local"
+
+# This role assumes using bundled installer
+- name: Modify bundle_dir of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^bundle_dir'
+    line: "bundle_dir={{ aap_base_dir }}/{{ aap_installer_dest_path }}/bundle"
+
+- name: Modify FQDN of inventory
+  ansible.builtin.replace:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: 'aap.example.org'
+    replace: "{{ aap_private_dns_name }}"
+
+- name: Modify postgresql_admin_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^postgresql_admin_password='
+    line: "postgresql_admin_password='{{ aap_pg_passwd }}'"
+
+- name: Modify gateway_admin_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^gateway_admin_password='
+    line: "gateway_admin_password='{{ aap_admin_passwd }}'"
+
+- name: Modify gateway_pg_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^gateway_pg_password='
+    line: "gateway_pg_password='{{ aap_pg_passwd }}'"
+
+- name: Modify controller_admin_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^controller_admin_password='
+    line: "controller_admin_password='{{ aap_admin_passwd }}'"
+
+- name: Modify controller_pg_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^controller_pg_password='
+    line: "controller_pg_password='{{ aap_pg_passwd }}'"
+
+- name: Modify hub_admin_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^hub_admin_password='
+    line: "hub_admin_password='{{ aap_admin_passwd }}'"
+
+- name: Modify hub_pg_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^hub_pg_password='
+    line: "hub_pg_password='{{ aap_pg_passwd }}'"
+
+- name: Modify eda_admin_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^eda_admin_password='
+    line: "eda_admin_password='{{ aap_admin_passwd }}'"
+
+- name: Modify eda_pg_password of inventory
+  ansible.builtin.lineinfile:
+    path: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}/inventory-growth"
+    regexp: '^eda_pg_password='
+    line: "eda_pg_password='{{ aap_pg_passwd }}'"
+
+- name: Run the AAP installer command (it will take 20-30 mins)
+  ansible.builtin.command: "ansible-playbook -i inventory-growth ansible.containerized_installer.install"
+  become: false
+  args:
+    chdir: "{{ aap_base_dir }}/{{ aap_installer_dest_path }}"
+  register: cmd_output
+  changed_when: cmd_output.rc == 0

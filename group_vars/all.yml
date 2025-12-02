@@ -28,4 +28,4 @@ managed_vms_environment:
 
 aap_vm_type: aap # should not be modified
 aap_vm_environment: mgmt # should not be modified
-aap_vm_name: aap03
+aap_vm_name: aap01
